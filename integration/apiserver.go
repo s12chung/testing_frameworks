@@ -66,11 +66,15 @@ type APIServer struct {
 	Err io.Writer
 
 	processState *internal.ProcessState
+	Ready        bool
 }
 
 // Start starts the apiserver, waits for it to come up, and returns an error,
 // if occurred.
 func (s *APIServer) Start() error {
+	if s.Ready {
+		return nil
+	}
 	if s.EtcdURL == nil {
 		return fmt.Errorf("expected EtcdURL to be configured")
 	}
@@ -114,7 +118,11 @@ func (s *APIServer) Start() error {
 		return err
 	}
 
-	return s.processState.Start(s.Out, s.Err)
+	if err = s.processState.Start(s.Out, s.Err); err != nil {
+		return err
+	}
+	s.Ready = true
+	return nil
 }
 
 // Stop stops this process gracefully, waits for its termination, and cleans up

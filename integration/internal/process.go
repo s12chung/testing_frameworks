@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"sync"
 	"time"
 
 	"github.com/onsi/gomega/gbytes"
@@ -40,6 +41,7 @@ type ProcessState struct {
 	Args         []string
 
 	ready bool
+	mutex *sync.Mutex
 }
 
 type DefaultedProcessInput struct {
@@ -109,6 +111,13 @@ func DoDefaulting(
 type stopChannel chan struct{}
 
 func (ps *ProcessState) Start(stdout, stderr io.Writer) (err error) {
+	if ps.mutex == nil {
+		ps.mutex = &sync.Mutex{}
+	}
+
+	ps.mutex.Lock()
+	defer ps.mutex.Unlock()
+
 	if ps.ready {
 		return nil
 	}
@@ -191,6 +200,9 @@ func (ps *ProcessState) Stop() error {
 	if ps.Session.Command.Process == nil {
 		return nil
 	}
+
+	ps.mutex.Lock()
+	defer ps.mutex.Unlock()
 
 	detectedStop := ps.Session.Terminate().Exited
 	timedOut := time.After(ps.StopTimeout)
